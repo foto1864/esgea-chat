@@ -62,33 +62,6 @@
   color: #2563eb;           /* blue for assistant */
 }
 
-.composer {
-  display: flex;
-  border-top: 1px solid #cbd5e1;
-  padding: 10px;
-  background: #e2e8f0;
-}
-
-textarea {
-  flex: 1;
-  resize: none;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  color: #1e293b;
-}
-
-button {
-  margin-left: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: none;
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
-}
-
 .chat {
   flex: 1;
   overflow-y: auto;
@@ -152,23 +125,24 @@ button {
   width: 100%;          /* ensure it stretches properly */
 }
 
-
 textarea {
   flex: 1;
-  min-height: 56px;          /* bigger input box */
-  max-height: 240px;         /* allow taller if multi-line */
-  font-size: 16px;           /* same size as chat messages */
-  line-height: 1.5;
-  resize: vertical;
-  padding: 14px 16px;        /* more padding */
+  min-height: 44px;     /* starts small */
+  max-height: 240px;    /* cap */
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;         /* JS controls height */
+  padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #1e293b;
+  overflow-y: hidden;   /* JS flips to auto when capped */
 }
 
+
 button {
-  height: 56px;              /* same as textarea min-height */
+  height: 60px;              /* same as textarea min-height */
   padding: 0 18px;
   border-radius: 14px;
   border: none;
