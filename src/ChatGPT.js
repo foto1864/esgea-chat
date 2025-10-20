@@ -1,17 +1,15 @@
-
 export async function chatWithGPT(messages) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch("http://localhost:3001/api/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo", // or gpt-4o-mini if you have it
-      messages: messages,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages }),
   });
 
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Proxy error ${res.status}: ${t}`);
+  }
+
   const data = await res.json();
-  return data.choices[0].message.content;
+  return data?.choices?.[0]?.message?.content ?? "(no content)";
 }
