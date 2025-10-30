@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { addIssue } from './storage'
 import { chatWithGPT } from './ChatGPT'
+import { autoTag, extractSubject } from './tagging'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
 
@@ -10,6 +11,24 @@ const examples=[
   'Workplace safety training for dock workers seems insufficient.',
   'Board lacks independent oversight on environmental reporting.',
 ]
+
+async function genTitleFromFirstMessage(text){
+  const sys={role:'system',content:'You create a concise chat title (2-6 words). No punctuation, no quotes, Title Case. If vague, return a generic category like "Environmental Concern". Return only the title.'}
+  const user={role:'user',content:text}
+  try{
+    const r=await chatWithGPT([sys,user])
+    const t=(r||'').split('\n')[0].trim()
+    if(!t) throw new Error()
+    return t.length>60?t.slice(0,60):t
+  }catch{
+    const s=(text||'').trim().toLowerCase()
+    if(/environment/.test(s)) return 'Environmental Concern'
+    if(/safety/.test(s)) return 'Safety Concern'
+    if(/governance|board|policy/.test(s)) return 'Governance Matter'
+    if(/social|community|stakeholder/.test(s)) return 'Social Concern'
+    return 'ESG Inquiry'
+  }
+}
 
 export default function Client(){
   const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[] }])
@@ -29,9 +48,10 @@ export default function Client(){
     const messages=active.messages.concat([{role:'user',content:prompt}]).map(m=>({role:m.role,content:m.content}))
     const reply=await chatWithGPT(messages)
     setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:c.messages.slice(0,-1).concat([{id:U(),role:'assistant',content:reply}])}:c))
-    if(active.messages.filter(m=>m.role==='user').length===0){
-      const t=prompt.split(' ').slice(0,4).join(' ')
-      setConvos(prev=>prev.map(c=>c.id===activeId?{...c,title:t||'New chat'}:c))
+    const userMsgCount=active.messages.filter(m=>m.role==='user').length+1
+    if(userMsgCount===1){
+      const title=await genTitleFromFirstMessage(prompt)
+      setConvos(prev=>prev.map(c=>c.id===activeId?{...c,title}:c))
     }
   }
 
@@ -53,7 +73,10 @@ export default function Client(){
   function submitReport(){
     const last=[...active.messages].reverse().find(m=>m.role==='assistant'&&m.content.startsWith('Final draft:'))
     if(!last) return alert('Create a final draft first.')
-    const issue=addIssue({title:active.title||'Report',report:last.content.replace(/^Final draft:\s*/,''),status:'submitted'})
+    const reportText=last.content.replace(/^Final draft:\s*/,'')
+    const subject=extractSubject(reportText) || active.title || 'ESG Report'
+    const tags=autoTag((active.title||'')+' '+reportText, subject)
+    const issue=addIssue({title:active.title||'Report',subject,report:reportText,tags,status:'submitted'})
     alert('Submitted. ID: '+issue.id)
   }
 

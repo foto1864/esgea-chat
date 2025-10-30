@@ -23,7 +23,7 @@ export function saveIssues(x) {
 
 export function addIssue(issue) {
   const all = loadIssues()
-  const it = { ...issue, id: uid(), status: 'submitted', createdAt: Date.now(), updatedAt: Date.now() }
+  const it = { ...issue, id: uid(), tags: issue.tags || [], subject: issue.subject || '', status: 'submitted', createdAt: Date.now(), updatedAt: Date.now() }
   const next = [it, ...all]
   saveIssues(next)
   return it
