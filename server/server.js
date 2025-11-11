@@ -36,5 +36,26 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+app.post("/api/rag/ask", async (req, res) => {
+  try {
+    const { question, citations = false, top_k = 6 } = req.body || {};
+    if (!question || typeof question !== "string") {
+      return res.status(400).json({ error: "Missing 'question' string" });
+    }
+    const base = process.env.RAG_BASE || "http://127.0.0.1:8000";
+    const r = await fetch(`${base}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, citations, top_k })
+    });
+    const text = await r.text();
+    return res.status(r.status).send(text);
+  } catch (e) {
+    console.error("RAG proxy error:", e);   // <-- add this
+    return res.status(502).json({ error: e.message });
+  }
+});
+  
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`API on http://localhost:${PORT}`));

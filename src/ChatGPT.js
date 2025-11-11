@@ -21,3 +21,20 @@ export async function chatWithGPT(messages) {
   const data = await res.json();
   return data?.choices?.[0]?.message?.content ?? "(no content)";
 }
+
+export async function askRAG(question, { citations = false, top_k = 6 } = {}) {
+  const base = process.env.REACT_APP_API_BASE || "api";
+  const url = base.endsWith("/api") ? `${base}/rag/ask` : `${base}/rag_ask.php`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, citations, top_k }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`RAG HTTP ${res.status} – ${text}`);
+  }
+  const data = await res.json(); // { answer: "..." }
+  return data?.answer ?? "(no answer)";
+}
+

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addIssue } from './storage'
 import { chatWithGPT } from './ChatGPT'
+import { askRAG } from "./ChatGPT";
 import { autoTag, extractSubject } from './tagging'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
@@ -45,15 +46,28 @@ export default function Client(){
 
   async function callAI(prompt){
     push('assistant','Thinking…')
-    const messages=active.messages.concat([{role:'user',content:prompt}]).map(m=>({role:m.role,content:m.content}))
-    const reply=await chatWithGPT(messages)
-    setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:c.messages.slice(0,-1).concat([{id:U(),role:'assistant',content:reply}])}:c))
-    const userMsgCount=active.messages.filter(m=>m.role==='user').length+1
+    try{
+      const reply = await askRAG(prompt, { citations: false, top_k: 6 })
+      setConvos(prev => prev.map(c =>
+        c.id===activeId
+          ? {...c, messages: c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:reply}])}
+          : c
+      ))
+    }catch(e){
+      setConvos(prev => prev.map(c =>
+        c.id===activeId
+          ? {...c, messages: c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:`RAG error: ${e.message}`}])}
+          : c
+      ))
+    }
+
+    const userMsgCount = active.messages.filter(m=>m.role==='user').length + 1
     if(userMsgCount===1){
-      const title=await genTitleFromFirstMessage(prompt)
-      setConvos(prev=>prev.map(c=>c.id===activeId?{...c,title}:c))
+      const title = await genTitleFromFirstMessage(prompt)
+      setConvos(prev => prev.map(c => c.id===activeId ? {...c, title} : c))
     }
   }
+
 
   function onSend(){
     const text=input.trim()
