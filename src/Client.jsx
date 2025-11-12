@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addIssue } from './storage'
-import { chatWithGPT } from './ChatGPT'
-import { askRAG } from "./ChatGPT";
+import { chatWithGPT, askRAG } from './ChatGPT'
 import { autoTag, extractSubject } from './tagging'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
@@ -12,6 +11,9 @@ const examples=[
   'Workplace safety training for dock workers seems insufficient.',
   'Board lacks independent oversight on environmental reporting.',
 ]
+
+// Regex used to detect facilitator replies
+const FACIL_RE = /^(I see an ESG concern\.|Κατάλαβα ότι περιγράφεις ESG)/i
 
 async function genTitleFromFirstMessage(text){
   const sys={role:'system',content:'You create a concise chat title (2-6 words). No punctuation, no quotes, Title Case. If vague, return a generic category like "Environmental Concern". Return only the title.'}
@@ -32,7 +34,8 @@ async function genTitleFromFirstMessage(text){
 }
 
 export default function Client(){
-  const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[] }])
+  // add facilitatorArmed per conversation
+  const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[], facilitatorArmed:false }])
   const [activeId,setActiveId]=useState(convos[0].id)
   const [input,setInput]=useState('')
   const taRef=useRef(null)
@@ -42,17 +45,30 @@ export default function Client(){
   const chatRef=useRef(null)
   useEffect(()=>{ if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight },[active?.messages])
 
-  function push(role,content){ setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:[...c.messages,{id:U(),role,content}]}:c)) }
+  function push(role,content){
+    setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:[...c.messages,{id:U(),role,content}]}:c))
+  }
 
   async function callAI(prompt){
+    // snapshot whether we’re armed BEFORE pushing “Thinking…”
+    const armed = !!active?.facilitatorArmed
+
     push('assistant','Thinking…')
+
     try{
-      const reply = await askRAG(prompt, { citations: false, top_k: 6 })
-      setConvos(prev => prev.map(c =>
-        c.id===activeId
-          ? {...c, messages: c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:reply}])}
-          : c
-      ))
+      const reply = await askRAG(prompt, { citations:false, top_k:6, facilitator: armed })
+
+      // Replace the “Thinking…” bubble with the real reply
+      setConvos(prev => prev.map(c => {
+        if (c.id !== activeId) return c
+        const newMsgs = c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:reply}])
+        // One-shot: immediately disarm after we used it
+        let facilitatorArmed = false
+        // If the reply itself is a facilitator prompt, arm for exactly the next user message
+        if (FACIL_RE.test(reply)) facilitatorArmed = true
+        return {...c, messages:newMsgs, facilitatorArmed}
+      }))
+
     }catch(e){
       setConvos(prev => prev.map(c =>
         c.id===activeId
@@ -61,6 +77,7 @@ export default function Client(){
       ))
     }
 
+    // Title for first user message in this chat
     const userMsgCount = active.messages.filter(m=>m.role==='user').length + 1
     if(userMsgCount===1){
       const title = await genTitleFromFirstMessage(prompt)
@@ -68,19 +85,28 @@ export default function Client(){
     }
   }
 
-
   function onSend(){
     const text=input.trim()
     if(!text) return
     push('user',text)
     setInput('')
+
+    // After the user sends a message, if we were armed, consume it now
+    setConvos(prev => prev.map(c => c.id===activeId ? {...c, facilitatorArmed: c.facilitatorArmed ? false : c.facilitatorArmed} : c))
+
     callAI(text)
   }
 
   async function finalizeReport(){
-    const transcript=active.messages.map(m=>`${m.role.toUpperCase()}: ${m.content}`).join('\n')
-    const sys={role:'system',content:'Rewrite the client’s concern into a formal report with fields: From, To, Subject, Prologue (1 paragraph), Main text (2–4 paragraphs), Ending (1 paragraph with potential solutions). Keep it concise, professional, and ESG-relevant.'}
-    const r=await chatWithGPT([sys,{role:'user',content:transcript}])
+    const transcript = active.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
+    const lang = /[\u0370-\u03FF\u1F00-\u1FFF]/.test(transcript) ? 'el' : 'en'
+    const sys = {
+      role:'system',
+      content:`Rewrite the client's concern into a formal ESG incident report in ${lang} with fields:
+From, To, Subject, Prologue (1 paragraph), Main text (2–4 paragraphs), Ending (1 paragraph with potential solutions).
+Be concise, professional, and neutral.`
+    }
+    const r = await chatWithGPT([sys, {role:'user', content: transcript}])
     push('assistant','Final draft:\n\n'+r)
   }
 
@@ -95,7 +121,7 @@ export default function Client(){
   }
 
   function newChat(){
-    const c={id:U(),title:'New chat',messages:[]}
+    const c={id:U(),title:'New chat',messages:[], facilitatorArmed:false}
     setConvos([c,...convos]); setActiveId(c.id)
   }
 

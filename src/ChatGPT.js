@@ -22,14 +22,22 @@ export async function chatWithGPT(messages) {
   return data?.choices?.[0]?.message?.content ?? "(no content)";
 }
 
-export async function askRAG(question, { citations = false, top_k = 6 } = {}) {
+export async function askRAG(question, opts = {}) {
+  const {
+    citations = false,
+    top_k = 6,
+    facilitator = false, // <-- new flag is accepted here
+  } = opts;
+
   const base = process.env.REACT_APP_API_BASE || "api";
   const url = base.endsWith("/api") ? `${base}/rag/ask` : `${base}/rag_ask.php`;
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, citations, top_k }),
+    body: JSON.stringify({ question, citations, top_k, facilitator }), // <-- send it
   });
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`RAG HTTP ${res.status} – ${text}`);
@@ -37,4 +45,5 @@ export async function askRAG(question, { citations = false, top_k = 6 } = {}) {
   const data = await res.json(); // { answer: "..." }
   return data?.answer ?? "(no answer)";
 }
+
 

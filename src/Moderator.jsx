@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadIssues, updateIssue } from './storage'
-import { chatWithGPT } from './ChatGPT'
+import { askRAG } from './ChatGPT' // <-- use RAG
 import { TAXONOMY_LIST, autoTag, extractSubject } from './tagging'
 import { searchIssues } from './search'
 
@@ -54,10 +54,11 @@ export default function Moderator(){
   const chatRef=useRef(null)
   useEffect(()=>{ if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight },[messages])
 
+  // seed thread with the submitted report
   useEffect(()=>{
     if(!active){ setMessages([]); return }
     const seed=[
-      {id:U(),role:'assistant',content:'A client has submitted the report below. Do you need help understanding or planning next steps?'},
+      {id:U(),role:'assistant',content:'A client has submitted the report below. Ask questions or request a plan and I’ll ground answers in eSgEA training.'},
       {id:U(),role:'assistant',content:active.report}
     ]
     setMessages(seed)
@@ -71,10 +72,27 @@ export default function Moderator(){
     push('user',text)
     setInput('')
     push('assistant','Thinking…')
-    const base=[{role:'system',content:'You assist a moderator with concise, actionable guidance: recap, ESG rationale, stakeholders, 3–5 next steps. Avoid boilerplate.'}]
-    const msgs=base.concat(messages.map(m=>({role:m.role==='assistant'?'assistant':'user',content:m.content}))).concat([{role:'user',content:text}])
-    const reply=await chatWithGPT(msgs)
-    setMessages(prev=>prev.slice(0,-1).concat([{id:U(),role:'assistant',content:reply}]))
+
+    // Build a single RAG question that includes the submitted report + moderator prompt.
+    // The PHP rag_ask uses its own system prompt; here we set intent & audience inside the "question" string.
+    const composedQuestion =
+`Moderator follow-up on a submitted ESG report. Please weave at least two relevant sections inline and keep the “From training” footer.
+
+Audience: site manager / supervisor.
+Goal: give clear, grounded rationale and practical next steps. Keep it conversational (short paragraphs), reference eSgEA sections inline when relevant, and end with one open question to move the case forward.
+
+Submitted report:
+${active.report || '(no report text)'}
+
+Moderator question:
+${text}`
+
+    try{
+      const reply = await askRAG(composedQuestion, { citations: false, top_k: 10 })
+      setMessages(prev=>prev.slice(0,-1).concat([{id:U(),role:'assistant',content:reply}]))
+    }catch(e){
+      setMessages(prev=>prev.slice(0,-1).concat([{id:U(),role:'assistant',content:`RAG error: ${e.message}`}]))
+    }
   }
 
   function toggleStatus(){
@@ -101,8 +119,6 @@ export default function Moderator(){
     }
     return arr.sort((a,b) => b.createdAt - a.createdAt)
   }, [issues, selectedTag, query, statusFilter])
-
-
 
   function editTags(issue, raw){
     const tags=raw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).slice(0,3)
