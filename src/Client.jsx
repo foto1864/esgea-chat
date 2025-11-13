@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { addIssue } from './storage'
 import { chatWithGPT, askRAG } from './ChatGPT'
 import { autoTag, extractSubject } from './tagging'
+import { useAuth } from './AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
 
@@ -34,6 +36,9 @@ async function genTitleFromFirstMessage(text){
 }
 
 export default function Client(){
+  // Firebase
+  const { logout, user } = useAuth()
+  const navigate = useNavigate()
   // add facilitatorArmed per conversation
   const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[], facilitatorArmed:false }])
   const [activeId,setActiveId]=useState(convos[0].id)
@@ -103,22 +108,39 @@ export default function Client(){
     const sys = {
       role:'system',
       content:`Rewrite the client's concern into a formal ESG incident report in ${lang} with fields:
-From, To, Subject, Prologue (1 paragraph), Main text (2–4 paragraphs), Ending (1 paragraph with potential solutions).
-Be concise, professional, and neutral.`
+              From, To, Subject, Prologue (1 paragraph), Main text (2–4 paragraphs), Ending (1 paragraph with potential solutions).
+              Be concise, professional, and neutral.`
     }
     const r = await chatWithGPT([sys, {role:'user', content: transcript}])
     push('assistant','Final draft:\n\n'+r)
   }
 
-  function submitReport(){
+  async function submitReport(){
     const last=[...active.messages].reverse().find(m=>m.role==='assistant'&&m.content.startsWith('Final draft:'))
     if(!last) return alert('Create a final draft first.')
-    const reportText=last.content.replace(/^Final draft:\s*/,'')
-    const subject=extractSubject(reportText) || active.title || 'ESG Report'
-    const tags=autoTag((active.title||'')+' '+reportText, subject)
-    const issue=addIssue({title:active.title||'Report',subject,report:reportText,tags,status:'submitted'})
-    alert('Submitted. ID: '+issue.id)
+
+    const reportText = last.content.replace(/^Final draft:\s*/,'')
+    const subject = extractSubject(reportText) || active.title || 'ESG Report'
+    const tags = autoTag((active.title||'')+' '+reportText, subject)
+
+    try {
+      const issue = await addIssue({
+        title: active.title || 'Report',
+        subject,
+        report: reportText,
+        tags,
+        status: 'submitted',
+        clientId: user ? user.uid : null,
+        clientEmail: user ? user.email : null
+      })
+
+      alert('Submitted. ID: ' + issue.id)
+    } catch (e) {
+      console.error(e)
+      alert('Error submitting report: ' + (e.message || 'unknown error'))
+    }
   }
+
 
   function newChat(){
     const c={id:U(),title:'New chat',messages:[], facilitatorArmed:false}
@@ -137,7 +159,12 @@ Be concise, professional, and neutral.`
         ))}
         <div style={{marginTop:'auto',display:'flex',gap:8}}>
           <Link to="/" style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,textDecoration:'none'}}>Main Menu</Link>
-          <Link to="/" style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,textDecoration:'none'}}>Log Out</Link>
+          <button
+            onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,border:'none',cursor:'pointer'}}
+          >
+            Log Out
+          </button>
         </div>
       </aside>
 

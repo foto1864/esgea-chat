@@ -1,10 +1,16 @@
+import { db } from './firebase'
+import { collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from 'firebase/firestore'
+
 const K1 = 'esgea_convos'
-const K2 = 'esgea_issues'
+const ISSUES_COL = 'issues'
 
 export function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
+// =======================
+// LocalStorage convos (αν τα θες στο μέλλον)
+// =======================
 export function loadConvos() {
   try { return JSON.parse(localStorage.getItem(K1)) || [] } catch { return [] }
 }
@@ -13,25 +19,36 @@ export function saveConvos(x) {
   localStorage.setItem(K1, JSON.stringify(x))
 }
 
-export function loadIssues() {
-  try { return JSON.parse(localStorage.getItem(K2)) || [] } catch { return [] }
+// =======================
+// Firestore issues
+// =======================
+
+export async function loadIssues() {
+  const q = query(collection(db, ISSUES_COL), orderBy('createdAt', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
-export function saveIssues(x) {
-  localStorage.setItem(K2, JSON.stringify(x))
+export async function addIssue(issue) {
+  const now = Date.now()
+  const base = {
+    ...issue,
+    tags: issue.tags || [],
+    subject: issue.subject || '',
+    status: issue.status || 'submitted',
+    createdAt: now,
+    updatedAt: now
+  }
+  const ref = await addDoc(collection(db, ISSUES_COL), base)
+  return { id: ref.id, ...base }
 }
 
-export function addIssue(issue) {
-  const all = loadIssues()
-  const it = { ...issue, id: uid(), tags: issue.tags || [], subject: issue.subject || '', status: 'submitted', createdAt: Date.now(), updatedAt: Date.now() }
-  const next = [it, ...all]
-  saveIssues(next)
-  return it
-}
-
-export function updateIssue(id, patch) {
-  const all = loadIssues()
-  const next = all.map(i => i.id === id ? { ...i, ...patch, updatedAt: Date.now() } : i)
-  saveIssues(next)
-  return next.find(i => i.id === id)
+export async function updateIssue(id, patch) {
+  const now = Date.now()
+  const ref = doc(db, ISSUES_COL, id)
+  const data = { ...patch, updatedAt: now }
+  await updateDoc(ref, data)
+  // Επιστρέφουμε μόνο το patch + updatedAt + id,
+  // ο caller θα το κάνει merge με το προηγούμενο object.
+  return { id, ...data }
 }
