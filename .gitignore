@@ -3,6 +3,9 @@
 # model training
 /rag
 
+# php for cPanel integration
+/php
+
 # firebase
 src/firebase.js
 

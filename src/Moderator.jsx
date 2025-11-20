@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadIssues, updateIssue } from './storage'
 import { askRAG } from './ChatGPT' // <-- use RAG
-import { TAXONOMY_LIST, autoTag, extractSubject } from './tagging'
+import { TAXONOMY_LIST, extractSubject, categorizeIssueESG, ESG_STRUCTURE } from './tagging'
 import { searchIssues } from './search'
 import { useAuth } from './AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -38,7 +38,10 @@ export default function Moderator(){
   const [messages,setMessages]=useState([])
   const [input,setInput]=useState('')
   const [mode,setMode]=useState('home')
+
   const [selectedTag,setSelectedTag]=useState(null)
+  const [selectedMajor,setSelectedMajor]=useState(null) // NEW
+
   const [query,setQuery]=useState('')
   const [statusFilter,setStatusFilter]=useState('all')
   const [searchInput,setSearchInput]=useState('')
@@ -60,7 +63,7 @@ export default function Moderator(){
     setMessages(seed)
   },[activeId])
 
-    useEffect(() => {
+  useEffect(() => {
     let cancelled = false
 
     async function fetchIssues() {
@@ -68,14 +71,32 @@ export default function Moderator(){
         const raw = await loadIssues()
         const fixed = raw.map(i => {
           const subject = i.subject || extractSubject(i.report || '') || ''
-          const tags = (i.tags && i.tags.length
-            ? i.tags
-            : autoTag((i.title || '') + ' ' + (i.report || ''), subject)
+          const cat = categorizeIssueESG(
+            (i.title || '') + ' ' + (i.report || ''),
+            subject
           )
+
+          const tags =
+            i.majors && i.majors.length && i.tags && i.tags.length
+              ? i.tags.slice(0, 3)
+              : cat.subcategories.slice(0, 3)
+
+          const majors =
+            i.majors && i.majors.length
+              ? i.majors
+              : cat.majors
+
+          const subsByMajor =
+            i.subsByMajor && Object.keys(i.subsByMajor).length
+              ? i.subsByMajor
+              : cat.subsByMajor
+
           return {
             ...i,
             subject,
-            tags: tags.slice(0, 3)
+            tags,
+            majors,
+            subsByMajor
           }
         })
         if (!cancelled) setIssues(fixed)
@@ -87,6 +108,7 @@ export default function Moderator(){
     fetchIssues()
     return () => { cancelled = true }
   }, [])
+
 
 
   function push(role,content){ setMessages(prev=>[...prev,{id:U(),role,content}]) }
@@ -129,23 +151,61 @@ ${text}`
   }
 
 
-  function goHome(){ setActiveId(null); setMode('home'); setSelectedTag(null) }
+  function goHome(){
+    setActiveId(null)
+    setMode('home')
+    setSelectedTag(null)
+    setSelectedMajor(null) // NEW
+  }
+
 
   const groups=groupByTag(issues)
   const unresolved=issues.filter(i=>i.status!=='resolved')
+
+  const majorsSummary = useMemo(() => {
+  const base = [
+    { major: 'environmental', open: 0, total: 0 },
+    { major: 'social', open: 0, total: 0 },
+    { major: 'governance', open: 0, total: 0 }
+  ]
+  const byKey = Object.fromEntries(base.map(x => [x.major, x]))
+  for (const it of issues) {
+    const majors = it.majors || []
+    for (const m of majors) {
+      if (!byKey[m]) continue
+      byKey[m].total += 1
+      if (it.status !== 'resolved') byKey[m].open += 1
+    }
+  }
+  return base
+  }, [issues])
+
   const resolved=issues.filter(i=>i.status==='resolved')
 
   const filteredList = useMemo(() => {
     let arr = issues
+
+    if (selectedMajor) {
+      arr = arr.filter(i => (i.majors || []).includes(selectedMajor))
+    }
+
     if (selectedTag) {
-      arr = arr.filter(i => (i.tags && i.tags.length ? i.tags : ['uncategorized']).includes(selectedTag))
+      arr = arr.filter(i =>
+        (i.tags && i.tags.length ? i.tags : ['uncategorized']).includes(selectedTag)
+      )
     }
+
     arr = searchIssues(arr, query)
+
     if (statusFilter !== 'all') {
-      arr = arr.filter(i => (statusFilter === 'open' ? i.status !== 'resolved' : i.status === 'resolved'))
+      arr = arr.filter(i =>
+        statusFilter === 'open' ? i.status !== 'resolved' : i.status === 'resolved'
+      )
     }
+
     return arr.sort((a,b) => b.createdAt - a.createdAt)
-  }, [issues, selectedTag, query, statusFilter])
+  }, [issues, selectedTag, selectedMajor, query, statusFilter])
+
 
   async function editTags(issue, raw){
     const tags = raw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).slice(0,3)
@@ -252,6 +312,7 @@ ${text}`
                     setQuery('')
                     setStatusFilter('all')
                     setSelectedTag(null)
+                    setSelectedMajor(null) // NEW
                     setMode('home')
                   }}
                   style={{background:'#64748b'}}
@@ -263,20 +324,28 @@ ${text}`
                   Loading issues…
                 </div>
               )}
-
-              <div className="grid" style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:12}}>
-                {groups.map(g=>(
-                  <div
-                    key={g.tag}
-                    className="bubble assistant"
-                    style={{cursor:'pointer'}}
-                    onClick={()=>{setSelectedTag(g.tag); setMode('list')}}
-                  >
-                    <div style={{fontWeight:600,marginBottom:6}}>{g.tag.replaceAll('_',' ')}</div>
-                    <div>{g.open} open / {g.total} total</div>
-                  </div>
-                ))}
-              </div>
+                <div
+                  className="grid"
+                  style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:12}}
+                >
+                  {majorsSummary.map(m => (
+                    <div
+                      key={m.major}
+                      className="bubble assistant"
+                      style={{cursor:'pointer'}}
+                      onClick={() => {
+                        setSelectedMajor(m.major)
+                        setSelectedTag(null)
+                        setMode('list')
+                      }}
+                    >
+                      <div style={{fontWeight:600,marginBottom:6}}>
+                        {ESG_STRUCTURE.majors[m.major] || m.major}
+                      </div>
+                      <div>{m.open} open / {m.total} total</div>
+                    </div>
+                  ))}
+                </div>
             </div>
           </div>
         )}
@@ -286,10 +355,22 @@ ${text}`
             <div className="chat-inner">
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
                 <div style={{fontSize:18,fontWeight:600}}>
-                  {selectedTag ? selectedTag.replaceAll('_',' ') : 'Search results'} · {filteredList.length}
+                  {selectedTag
+                    ? selectedTag.replaceAll('_',' ')
+                    : selectedMajor
+                      ? (ESG_STRUCTURE.majors[selectedMajor] || selectedMajor)
+                      : 'Search results'
+                  } · {filteredList.length}
                 </div>
+
                 <button
-                  onClick={()=>{ setQuery(''); setStatusFilter('all'); setSelectedTag(null); setMode('home') }}
+                  onClick={()=>{
+                    setQuery('')
+                    setStatusFilter('all')
+                    setSelectedTag(null)
+                    setSelectedMajor(null)
+                    setMode('home')
+                  }}
                   style={{background:'#64748b'}}
                 >
                   Back

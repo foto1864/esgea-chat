@@ -1,67 +1,430 @@
-const TAXONOMY = [
-  'environmental','social','governance','compliance','training','safety',
-  'emissions','waste','energy','labor','diversity_inclusion','community',
-  'reporting','supply_chain','risk','ethics'
-]
+const MAJORS = {
+  environmental: 'Environmental',
+  social: 'Social',
+  governance: 'Governance'
+}
+
+const SUBCATEGORIES = {
+  environmental: [
+    'climate_emissions',
+    'energy',
+    'water',
+    'waste_circularity',
+    'biodiversity_land_use',
+    'pollution',
+    'supply_chain_environment'
+  ],
+  social: [
+    'labor_employment',
+    'health_safety_wellbeing',
+    'dei',
+    'human_rights',
+    'community_social_impact',
+    'product_customer_welfare',
+    'talent_development'
+  ],
+  governance: [
+    'board_oversight',
+    'ethics_anti_corruption',
+    'risk_compliance',
+    'data_privacy_cybersecurity',
+    'executive_remuneration',
+    'transparency_reporting',
+    'supply_chain_governance'
+  ]
+}
+
+const SUBCATEGORY_LABELS = {
+  climate_emissions: 'Climate & Emissions',
+  energy: 'Energy',
+  water: 'Water',
+  waste_circularity: 'Waste & Circularity',
+  biodiversity_land_use: 'Biodiversity & Land Use',
+  pollution: 'Pollution',
+  supply_chain_environment: 'Supply Chain (Environment)',
+
+  labor_employment: 'Labor & Employment',
+  health_safety_wellbeing: 'Health, Safety & Wellbeing',
+  dei: 'Diversity, Equity & Inclusion (DEI)',
+  human_rights: 'Human Rights',
+  community_social_impact: 'Community & Social Impact',
+  product_customer_welfare: 'Product Responsibility & Customer Welfare',
+  talent_development: 'Talent Development',
+
+  board_oversight: 'Board & Oversight',
+  ethics_anti_corruption: 'Ethics & Anti-Corruption',
+  risk_compliance: 'Risk Management & Compliance',
+  data_privacy_cybersecurity: 'Data Privacy & Cybersecurity',
+  executive_remuneration: 'Executive Remuneration & Incentives',
+  transparency_reporting: 'Transparency & Reporting',
+  supply_chain_governance: 'Supply Chain Management (Governance)'
+}
+
+const SUBCATEGORY_TO_MAJOR = (() => {
+  const m = {}
+  for (const major of Object.keys(SUBCATEGORIES)) {
+    for (const sub of SUBCATEGORIES[major]) {
+      m[sub] = major
+    }
+  }
+  return m
+})()
 
 const WORDS = {
-  environmental:['environment','environmental','ecosystem','biodiversity','marine','water','pollution','spill','oil spill','recycling','recycle','waste','landfill','circular','co2','ghg','emission','footprint','energy','renewable','conservation','habitat'],
-  social:['social','community','stakeholder','wellbeing','human rights','grievance','engagement'],
-  governance:['governance','board','oversight','policy','whistleblow','anti-corruption','sanction','transparency'],
-  compliance:['compliance','law','legal','regulation','directive','iso','csrd','esrs','eu-taxonomy'],
-  training:['training','course','module','lesson','capacitation','upskill'],
-  safety:['safety','ohs','incident','accident','hazard','ppe','health'],
-  emissions:['emission','co2','ghg','scope 1','scope 2','scope 3','decarbon'],
-  waste:['waste','recycle','recycling','landfill','circular','segregation','sorting'],
-  energy:['energy','electricity','consumption','efficiency','renewable','solar','wind'],
-  labor:['labor','wage','overtime','union','hours','contract','workers'],
-  diversity_inclusion:['diversity','inclusion','gender','equality','non-discrimination','dei'],
-  community:['community','local','donation','volunteer','outreach'],
-  reporting:['report','kpi','metric','disclosure','assurance','audit','materiality','esg report'],
-  supply_chain:['supplier','procurement','sourcing','vendor','chain','logistics'],
-  risk:['risk','assessment','register','mitigation','likelihood','impact'],
-  ethics:['ethics','anti-bribery','fraud','corruption','code of conduct']
+  climate_emissions: [
+    'climate',
+    'global warming',
+    'temperature target',
+    'co2',
+    'ghg',
+    'greenhouse gas',
+    'emission',
+    'emissions',
+    'scope 1',
+    'scope 2',
+    'scope 3',
+    'carbon',
+    'decarbon',
+    'net zero',
+    'carbon footprint'
+  ],
+  energy: [
+    'energy',
+    'electricity',
+    'fuel',
+    'diesel',
+    'gasoline',
+    'consumption',
+    'efficiency',
+    'energy saving',
+    'renewable',
+    'solar',
+    'wind',
+    'heat',
+    'lighting'
+  ],
+  water: [
+    'water',
+    'water use',
+    'water management',
+    'wastewater',
+    'sewage',
+    'discharge',
+    'stormwater',
+    'leak',
+    'leakage'
+  ],
+  waste_circularity: [
+    'waste',
+    'recycle',
+    'recycling',
+    'recyclable',
+    'landfill',
+    'circular',
+    'circularity',
+    'segregation',
+    'sorting',
+    'reuse',
+    'compost'
+  ],
+  biodiversity_land_use: [
+    'biodiversity',
+    'habitat',
+    'ecosystem',
+    'species',
+    'flora',
+    'fauna',
+    'land use',
+    'deforestation',
+    'reforestation',
+    'wetland',
+    'marine',
+    'coastal'
+  ],
+  pollution: [
+    'pollution',
+    'spill',
+    'oil spill',
+    'air quality',
+    'noise',
+    'odour',
+    'contamination',
+    'leak',
+    'chemicals'
+  ],
+  supply_chain_environment: [
+    'supplier',
+    'procurement',
+    'sourcing',
+    'vendor',
+    'logistics',
+    'transport',
+    'fleet',
+    'upstream',
+    'downstream',
+    'environmental requirement',
+    'environmental criteria'
+  ],
+
+  labor_employment: [
+    'labor',
+    'labour',
+    'employment',
+    'employee',
+    'wage',
+    'salary',
+    'overtime',
+    'work hours',
+    'shift',
+    'contract',
+    'union',
+    'collective agreement',
+    'hiring',
+    'firing'
+  ],
+  health_safety_wellbeing: [
+    'safety',
+    'health',
+    'ohs',
+    'occupational',
+    'incident',
+    'accident',
+    'hazard',
+    'near miss',
+    'ppe',
+    'wellbeing',
+    'fatigue',
+    'stress',
+    'injury'
+  ],
+  dei: [
+    'diversity',
+    'inclusion',
+    'inclusive',
+    'equity',
+    'equality',
+    'gender',
+    'dei',
+    'non-discrimination',
+    'harassment',
+    'bullying'
+  ],
+  human_rights: [
+    'human rights',
+    'forced labor',
+    'child labor',
+    'child labour',
+    'modern slavery',
+    'freedom of association',
+    'right to',
+    'abuse',
+    'exploitation'
+  ],
+  community_social_impact: [
+    'community',
+    'local community',
+    'social impact',
+    'donation',
+    'sponsorship',
+    'volunteer',
+    'outreach',
+    'neighbour',
+    'neighborhood',
+    'stakeholder engagement'
+  ],
+  product_customer_welfare: [
+    'customer',
+    'client',
+    'product safety',
+    'product quality',
+    'complaint',
+    'recall',
+    'misleading',
+    'marketing',
+    'data on product use',
+    'user safety'
+  ],
+  talent_development: [
+    'training',
+    'course',
+    'module',
+    'lesson',
+    'upskill',
+    'reskill',
+    'capacity building',
+    'talent',
+    'development program',
+    'career',
+    'performance review'
+  ],
+
+  board_oversight: [
+    'board',
+    'board of directors',
+    'oversight',
+    'supervisory',
+    'governance structure',
+    'committee',
+    'esg committee'
+  ],
+  ethics_anti_corruption: [
+    'ethics',
+    'ethical',
+    'code of conduct',
+    'anti-bribery',
+    'anti bribery',
+    'bribe',
+    'corruption',
+    'fraud',
+    'whistleblow',
+    'whistle-blow',
+    'sanction',
+    'conflict of interest'
+  ],
+  risk_compliance: [
+    'risk',
+    'risk assessment',
+    'risk register',
+    'mitigation',
+    'likelihood',
+    'impact',
+    'compliance',
+    'law',
+    'legal',
+    'regulation',
+    'directive',
+    'iso',
+    'csrd',
+    'esrs',
+    'eu-taxonomy',
+    'eu taxonomy'
+  ],
+  data_privacy_cybersecurity: [
+    'data',
+    'privacy',
+    'gdpr',
+    'personal data',
+    'cyber',
+    'cybersecurity',
+    'information security',
+    'breach',
+    'hack',
+    'phishing'
+  ],
+  executive_remuneration: [
+    'executive',
+    'management bonus',
+    'remuneration',
+    'incentive',
+    'stock option',
+    'variable pay'
+  ],
+  transparency_reporting: [
+    'report',
+    'reporting',
+    'disclosure',
+    'kpi',
+    'metric',
+    'assurance',
+    'audit',
+    'materiality',
+    'esg report',
+    'non-financial report',
+    'sustainability report'
+  ],
+  supply_chain_governance: [
+    'supplier code of conduct',
+    'supplier audit',
+    'third party due diligence',
+    'screening',
+    'vendor assessment',
+    'supply chain governance'
+  ]
 }
 
 const PHRASES = [
-  {rx:/\boil\s+spill(s)?\b/i, tag:'environmental'},
-  {rx:/\brecycling?|recyclable|waste\s+segregation\b/i, tag:'waste'},
-  {rx:/\bspill\s+response|containment\b/i, tag:'safety'},
-  {rx:/\bcsrd|esrs|eu[-\s]?taxonomy\b/i, tag:'compliance'},
-  {rx:/\bscope\s*(1|2|3)\b/i, tag:'emissions'}
+  { rx: /\boil\s+spill(s)?\b/i, sub: 'pollution' },
+  { rx: /\brecycling?|recyclable|waste\s+segregation\b/i, sub: 'waste_circularity' },
+  { rx: /\bspill\s+response|containment\b/i, sub: 'pollution' },
+  { rx: /\bcsrd|esrs|eu[-\s]?taxonomy\b/i, sub: 'risk_compliance' },
+  { rx: /\bscope\s*(1|2|3)\b/i, sub: 'climate_emissions' }
 ]
 
-function scoreOne(text, needles){
-  let s=0
-  for(const n of needles){
+function scoreOne(text, needles) {
+  let s = 0
+  for (const n of needles) {
     const r = new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`,'i')
-    if(r.test(text)) s+=2
-    else if(text.includes(n)) s+=1
+    if (r.test(text)) s += 2
+    else if (text.includes(n)) s += 1
   }
   return s
 }
 
-export function autoTag(raw, subject){
-  const text=(raw||'').toLowerCase()
-  const subj=(subject||'').toLowerCase()
+function computeSubcategoryHits(raw, subject) {
+  const text = (raw || '').toLowerCase()
+  const subj = (subject || '').toLowerCase()
   const boost = subj ? 2 : 0
   const hits = {}
-  for(const p of PHRASES){ if(p.rx.test(raw)) hits[p.tag]=(hits[p.tag]||0)+3 }
-  for(const tag of Object.keys(WORDS)){
-    let s=scoreOne(text, WORDS[tag])
-    s += boost*scoreOne(subj, WORDS[tag])
-    if(s>0) hits[tag]=(hits[tag]||0)+s
+
+  for (const p of PHRASES) {
+    if (p.rx.test(raw)) hits[p.sub] = (hits[p.sub] || 0) + 3
   }
-  const arr=Object.entries(hits).sort((a,b)=>b[1]-a[1]).map(x=>x[0])
-  const out=arr.slice(0,3)
-  return out.length?out:['environmental']
+
+  for (const sub of Object.keys(WORDS)) {
+    let s = scoreOne(text, WORDS[sub])
+    s += boost * scoreOne(subj, WORDS[sub])
+    if (s > 0) hits[sub] = (hits[sub] || 0) + s
+  }
+
+  return hits
 }
 
-export function extractSubject(report){
-  if(!report) return ''
+export function categorizeIssueESG(raw, subject) {
+  const hits = computeSubcategoryHits(raw, subject)
+  const entries = Object.entries(hits).sort((a, b) => b[1] - a[1])
+  const subcategories = entries.map(([sub]) => sub)
+
+  const majorScores = {}
+  for (const [sub, score] of entries) {
+    const major = SUBCATEGORY_TO_MAJOR[sub]
+    if (!major) continue
+    majorScores[major] = (majorScores[major] || 0) + score
+  }
+
+  let majors = Object.entries(majorScores).sort((a, b) => b[1] - a[1]).map(([m]) => m)
+  if (!majors.length) majors = ['environmental']
+
+  const best = majors.length ? majorScores[majors[0]] : 0
+  const selectedMajors = majors.filter(m => majorScores[m] && majorScores[m] >= best * 0.5)
+
+  const subsByMajor = {}
+  for (const [sub] of entries) {
+    const major = SUBCATEGORY_TO_MAJOR[sub]
+    if (!major || !selectedMajors.includes(major)) continue
+    if (!subsByMajor[major]) subsByMajor[major] = []
+    subsByMajor[major].push(sub)
+  }
+
+  if (!subcategories.length) subcategories.push('climate_emissions')
+
+  return { majors: selectedMajors, subsByMajor, subcategories }
+}
+
+export function autoTag(raw, subject) {
+  return categorizeIssueESG(raw, subject).subcategories.slice(0, 3)
+}
+
+export function extractSubject(report) {
+  if (!report) return ''
   const m = report.match(/\*\*Subject:\*\*\s*(.+)/i) || report.match(/Subject:\s*(.+)/i)
-  if(!m) return ''
+  if (!m) return ''
   return m[1].trim().replace(/\*\*/g,'').replace(/\s{2,}/g,' ')
 }
 
-export const TAXONOMY_LIST = TAXONOMY
+export const ESG_STRUCTURE = {
+  majors: MAJORS,
+  subcategories: SUBCATEGORIES,
+  labels: SUBCATEGORY_LABELS
+}
+
+export const TAXONOMY_LIST = Object.keys(SUBCATEGORY_LABELS)

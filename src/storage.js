@@ -34,6 +34,8 @@ export async function addIssue(issue) {
   const base = {
     ...issue,
     tags: issue.tags || [],
+    majors: issue.majors || [],          // NEW
+    subsByMajor: issue.subsByMajor || {},// NEW
     subject: issue.subject || '',
     status: issue.status || 'submitted',
     createdAt: now,
@@ -42,6 +44,7 @@ export async function addIssue(issue) {
   const ref = await addDoc(collection(db, ISSUES_COL), base)
   return { id: ref.id, ...base }
 }
+
 
 export async function updateIssue(id, patch) {
   const now = Date.now()
