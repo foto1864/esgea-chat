@@ -78,8 +78,8 @@ export default function Moderator(){
 
           const tags =
             i.majors && i.majors.length && i.tags && i.tags.length
-              ? i.tags.slice(0, 3)
-              : cat.subcategories.slice(0, 3)
+              ? i.tags.slice(0, 5)
+              : cat.subcategories.slice(0, 5)
 
           const majors =
             i.majors && i.majors.length
@@ -180,6 +180,37 @@ ${text}`
   return base
   }, [issues])
 
+  const subSummaries = useMemo(() => {
+  const res = {}
+  const majors = ['environmental','social','governance']
+
+  for (const major of majors) {
+    const subs = ESG_STRUCTURE.subcategories[major] || []
+    const arr = subs.map(sub => ({ sub, open: 0, total: 0 }))
+    const byKey = Object.fromEntries(arr.map(x => [x.sub, x]))
+
+    for (const it of issues) {
+      const majorsOfIssue = it.majors || []
+      if (!majorsOfIssue.includes(major)) continue
+
+      const subsForIssue =
+        (it.subsByMajor && it.subsByMajor[major]) ||
+        (it.tags || []).filter(t => subs.includes(t))
+
+      for (const s of subsForIssue) {
+        const bucket = byKey[s]
+        if (!bucket) continue
+        bucket.total += 1
+        if (it.status !== 'resolved') bucket.open += 1
+      }
+    }
+
+    res[major] = arr
+    }
+
+    return res
+  }, [issues])
+
   const resolved=issues.filter(i=>i.status==='resolved')
 
   const filteredList = useMemo(() => {
@@ -190,9 +221,14 @@ ${text}`
     }
 
     if (selectedTag) {
-      arr = arr.filter(i =>
-        (i.tags && i.tags.length ? i.tags : ['uncategorized']).includes(selectedTag)
-      )
+      arr = arr.filter(i => {
+        const subsForMajor =
+          (i.subsByMajor && selectedMajor && i.subsByMajor[selectedMajor]) || []
+
+        const tagArr = (i.tags && i.tags.length ? i.tags : [])
+
+        return subsForMajor.includes(selectedTag) || tagArr.includes(selectedTag)
+      })
     }
 
     arr = searchIssues(arr, query)
@@ -207,8 +243,9 @@ ${text}`
   }, [issues, selectedTag, selectedMajor, query, statusFilter])
 
 
+
   async function editTags(issue, raw){
-    const tags = raw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).slice(0,3)
+    const tags = raw.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).slice(0,5)
     const valid = tags.filter(t => t === 'uncategorized' || TAXONOMY_LIST.includes(t))
     const it = await updateIssue(issue.id, { tags: valid })
     setIssues(prev => prev.map(i => i.id === issue.id ? { ...i, ...it } : i))
@@ -354,13 +391,13 @@ ${text}`
           <div className="chat">
             <div className="chat-inner">
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <div style={{fontSize:18,fontWeight:600}}>
+                <div style={{fontSize:24,fontWeight:600}}>
                   {selectedTag
                     ? selectedTag.replaceAll('_',' ')
                     : selectedMajor
                       ? (ESG_STRUCTURE.majors[selectedMajor] || selectedMajor)
                       : 'Search results'
-                  } · {filteredList.length}
+                  } · {filteredList.length} Issues in total
                 </div>
 
                 <button
@@ -371,17 +408,50 @@ ${text}`
                     setSelectedMajor(null)
                     setMode('home')
                   }}
-                  style={{background:'#64748b'}}
+                  style={{background:'#64748b', marginRight: 50}}
                 >
                   Back
                 </button>
               </div>
 
+              {selectedMajor && (
+                <div
+                  className="grid"
+                  style={{
+                    display:'grid',
+                    gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',
+                    gap:8,
+                    marginBottom:12,
+                    marginTop: 25
+                  }}
+                >
+                  {(subSummaries[selectedMajor] || []).map(s => (
+                    <div
+                      key={s.sub}
+                      className="bubble assistant"
+                      style={{cursor:'pointer'}}
+                      onClick={() => {
+                        setSelectedTag(s.sub)
+                      }}
+                    >
+                      <div style={{fontWeight:600,marginBottom:4}}>
+                        {ESG_STRUCTURE.labels[s.sub] || s.sub.replaceAll('_',' ')}
+                      </div>
+                      <div style={{fontSize:12}}>
+                        {s.open} open / {s.total} total
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{fontSize:24,fontWeight:600, marginBottom: 25, marginTop: 50}}>All Issues</div>
+
               {filteredList.map(i=>(
                 <div key={i.id} className="bubble assistant" style={{marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                     <div style={{fontWeight:600}}>{i.subject||i.title}</div>
-                    <button onClick={()=>{setActiveId(i.id); setMode('chat')}}>Open</button>
+                    <button onClick={()=>{setActiveId(i.id); setMode('chat')}} style={{marginLeft: 15}}>Open</button>
                   </div>
                   <div style={{fontSize:12,opacity:.8,marginBottom:6}}>{new Date(i.createdAt).toLocaleString()}</div>
                   <div style={{fontSize:14,marginBottom:8,whiteSpace:'pre-wrap'}}>

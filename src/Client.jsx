@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { addIssue } from './storage'
+import { addIssue, loadIssuesByClient } from './storage'
 import { chatWithGPT, askRAG } from './ChatGPT'
 import { autoTag, extractSubject } from './tagging'
 import { useAuth } from './AuthContext'
@@ -36,19 +36,33 @@ async function genTitleFromFirstMessage(text){
 }
 
 export default function Client(){
-  // Firebase
+
   const { logout, user } = useAuth()
   const navigate = useNavigate()
-  // add facilitatorArmed per conversation
   const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[], facilitatorArmed:false }])
   const [activeId,setActiveId]=useState(convos[0].id)
   const [input,setInput]=useState('')
+  const [issues, setIssues] = useState([])
   const taRef=useRef(null)
   const MAX=240
   const active=useMemo(()=>convos.find(c=>c.id===activeId),[convos,activeId])
+
   useEffect(()=>{ if(taRef.current){ taRef.current.style.height='auto'; const h=Math.min(taRef.current.scrollHeight,MAX); taRef.current.style.height=h+'px'; taRef.current.style.overflowY=taRef.current.scrollHeight>MAX?'auto':'hidden'}},[input])
   const chatRef=useRef(null)
   useEffect(()=>{ if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight },[active?.messages])
+
+  useEffect(()=>{
+    if (!user) {
+      setIssues([])
+      return
+    }
+    loadIssuesByClient(user.uid)
+      .then(setIssues)
+      .catch(e => {
+        console.error('Error loading client issues', e)
+        setIssues([])
+      })
+  }, [user])
 
   function push(role,content){
     setConvos(prev=>prev.map(c=>c.id===activeId?{...c,messages:[...c.messages,{id:U(),role,content}]}:c))
@@ -96,11 +110,18 @@ export default function Client(){
     push('user',text)
     setInput('')
 
-    // After the user sends a message, if we were armed, consume it now
-    setConvos(prev => prev.map(c => c.id===activeId ? {...c, facilitatorArmed: c.facilitatorArmed ? false : c.facilitatorArmed} : c))
+    setConvos(prev => prev.map(c => {
+      if (c.id !== activeId) return c
+      return {
+        ...c,
+        facilitatorArmed: c.facilitatorArmed ? false : c.facilitatorArmed,
+        hasUserReply: c.fromIssue ? true : c.hasUserReply
+      }
+    }))
 
     callAI(text)
   }
+
 
   async function finalizeReport(){
     const transcript = active.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
@@ -147,16 +168,64 @@ export default function Client(){
     setConvos([c,...convos]); setActiveId(c.id)
   }
 
+  function openIssueAsConvo(issue){
+    const existing = convos.find(c => c.issueId === issue.id)
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    const msgs = [
+      { id: U(), role: 'assistant', content: `Submitted ESG report:\n\n${issue.report || '(no report text saved)'}` }
+    ]
+    const c = {
+      id: U(),
+      title: issue.subject || issue.title || 'Previous report',
+      messages: msgs,
+      facilitatorArmed: false,
+      issueId: issue.id,
+      fromIssue: true,
+      hasUserReply: false
+    }
+    setConvos(prev => [c, ...prev])
+    setActiveId(c.id)
+  }
+
+
   return (
     <div className="app">
       <aside className="sidebar">
         <button onClick={newChat}>New Chat</button>
+
         <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Examples</div>
         {examples.map((e,i)=>(<div key={i} className="convo" onClick={()=>setInput(e)}>{e}</div>))}
         <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Conversations</div>
-        {convos.map(c=>(
-          <div key={c.id} className={'convo '+(c.id===activeId?'active':'')} onClick={()=>setActiveId(c.id)}>{c.title}</div>
+        {convos
+          .filter(c => !c.fromIssue || c.hasUserReply)
+          .map(c=>(
+            <div
+              key={c.id}
+              className={'convo '+(c.id===activeId?'active':'')}
+              onClick={()=>setActiveId(c.id)}
+            >
+              {c.title}
+            </div>
+          ))}
+
+
+        <div style={{padding:'6px 0',color:'#475569',fontSize:12, marginTop:8}}>Submitted Issues</div>
+        {issues.length === 0 && (
+          <div style={{fontSize:12, opacity:.7}}>No submitted issues yet.</div>
+        )}
+        {issues.map(issue => (
+          <div
+            key={issue.id}
+            className="convo"
+            onClick={() => openIssueAsConvo(issue)}
+          >
+            {issue.subject || issue.title || 'Untitled issue'}
+          </div>
         ))}
+
         <div style={{marginTop:'auto',display:'flex',gap:8}}>
           <Link to="/" style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,textDecoration:'none'}}>Main Menu</Link>
           <button

@@ -381,8 +381,18 @@ function computeSubcategoryHits(raw, subject) {
 
 export function categorizeIssueESG(raw, subject) {
   const hits = computeSubcategoryHits(raw, subject)
-  const entries = Object.entries(hits).sort((a, b) => b[1] - a[1])
-  const subcategories = entries.map(([sub]) => sub)
+
+  let entries = Object.entries(hits).sort((a, b) => b[1] - a[1])
+
+  if (entries.length) {
+    const bestScore = entries[0][1]
+    entries = entries.filter(([_, score]) => score >= bestScore * 0.5)
+  }
+
+  const allSubsSorted = entries.map(([sub]) => sub)
+
+  const chosenSubs = allSubsSorted.slice(0, 5)
+  const subcategories = chosenSubs.length ? chosenSubs : []
 
   const majorScores = {}
   for (const [sub, score] of entries) {
@@ -391,14 +401,19 @@ export function categorizeIssueESG(raw, subject) {
     majorScores[major] = (majorScores[major] || 0) + score
   }
 
-  let majors = Object.entries(majorScores).sort((a, b) => b[1] - a[1]).map(([m]) => m)
+  let majors = Object.entries(majorScores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([m]) => m)
+
   if (!majors.length) majors = ['environmental']
 
-  const best = majors.length ? majorScores[majors[0]] : 0
-  const selectedMajors = majors.filter(m => majorScores[m] && majorScores[m] >= best * 0.5)
+  const bestMajorScore = majors.length ? majorScores[majors[0]] : 0
+  const selectedMajors = majors.filter(
+    m => majorScores[m] && majorScores[m] >= bestMajorScore * 0.5
+  )
 
   const subsByMajor = {}
-  for (const [sub] of entries) {
+  for (const sub of chosenSubs) {
     const major = SUBCATEGORY_TO_MAJOR[sub]
     if (!major || !selectedMajors.includes(major)) continue
     if (!subsByMajor[major]) subsByMajor[major] = []
@@ -410,8 +425,9 @@ export function categorizeIssueESG(raw, subject) {
   return { majors: selectedMajors, subsByMajor, subcategories }
 }
 
+
 export function autoTag(raw, subject) {
-  return categorizeIssueESG(raw, subject).subcategories.slice(0, 3)
+  return categorizeIssueESG(raw, subject).subcategories.slice(0, 5)
 }
 
 export function extractSubject(report) {
