@@ -27,6 +27,7 @@ export async function askRAG(question, opts = {}) {
     citations = false,
     top_k = 6,
     facilitator = false,
+    messages = [],
   } = opts;
 
   const base = API_BASE;
@@ -38,7 +39,7 @@ export async function askRAG(question, opts = {}) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, citations, top_k, facilitator }),
+    body: JSON.stringify({ question, citations, top_k, facilitator, messages }),
   });
 
   if (!res.ok) {

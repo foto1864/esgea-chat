@@ -75,7 +75,8 @@ export default function Client(){
     push('assistant','Thinking…')
 
     try{
-      const reply = await askRAG(prompt, { citations:false, top_k:6, facilitator: armed })
+      const recent = (active?.messages || []).slice(-8).map(m => ({ role: m.role, content: m.content }))
+      const reply = await askRAG(prompt, { citations:false, top_k:6, facilitator: armed, messages: recent })
 
       // Replace the “Thinking…” bubble with the real reply
       setConvos(prev => prev.map(c => {
@@ -155,7 +156,7 @@ export default function Client(){
         clientEmail: user ? user.email : null
       })
 
-      alert('Submitted. ID: ' + issue.id)
+      alert('ESG Report Submitted.')
     } catch (e) {
       console.error(e)
       alert('Error submitting report: ' + (e.message || 'unknown error'))
