@@ -6,6 +6,8 @@ import { TAXONOMY_LIST, extractSubject, categorizeIssueESG, ESG_STRUCTURE } from
 import { searchIssues } from './search'
 import { useAuth } from './AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { tr, taxLabel } from './i18n'
+import LanguageSwitcher from './LanguageSwitcher'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
 
@@ -26,13 +28,16 @@ function groupByTag(issues){
   return out.sort((a,b)=>b.open-a.open||a.tag.localeCompare(b.tag))
 }
 
-export default function Moderator(){
+export default function Moderator({ lang, setLang }) {
   // Firebase
   const { logout } = useAuth()
   const navigate = useNavigate()
   // Functionality
   const [issues, setIssues] = useState([])
   const [issuesLoading, setIssuesLoading] = useState(true)
+  // Translations
+  const t = key => tr(lang, key)
+  const label = key => taxLabel(lang, key)
 
   const [activeId,setActiveId]=useState(issues.find(i=>i.status!=='resolved')?.id||null)
   const [messages,setMessages]=useState([])
@@ -256,9 +261,12 @@ ${text}`
     <div className="app">
       <aside className="sidebar">
         <div className="sidebar-scroll">
-          <button className='top-sidebar-btn' onClick={goHome} style={{background:'#64748b',marginBottom:10}}>Home</button>
+          <div className="sidebar-language">
+            <LanguageSwitcher lang={lang} setLang={setLang} />
+          </div>
+          <button className='top-sidebar-btn' onClick={goHome} style={{background:'#64748b',marginBottom:10}}>{t('home')}</button>
 
-          <div style={{padding:'6px 0',color:'#b91c1c',fontSize:12}}>Unresolved</div>
+          <div style={{padding:'6px 0',color:'#b91c1c',fontSize:12}}>{t('unresolved')}</div>
           {unresolved.map(i=>(
             <div
               key={i.id}
@@ -269,7 +277,7 @@ ${text}`
             </div>
           ))}
 
-          <div style={{padding:'6px 0',color:'#065f46',fontSize:12}}>Resolved</div>
+          <div style={{padding:'6px 0',color:'#065f46',fontSize:12}}>{t('resolved')}</div>
           {resolved.map(i=>(
             <div
               key={i.id}
@@ -286,13 +294,13 @@ ${text}`
             onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
             className="sidebar-footer-btn"
           >
-            Main Menu
+            {t('mainMenu')}
           </button>
           <button
             onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
             className="sidebar-footer-btn"
           >
-            Log Out
+            {t('logOut')}
           </button>
         </div>
       </aside>
@@ -320,9 +328,9 @@ ${text}`
                   onChange={e=>setStatusFilter(e.target.value)}
                   style={{padding:'10px',borderRadius:12,border:'1px solid #cbd5e1',background:'#fff'}}
                 >
-                  <option value="all">All</option>
-                  <option value="open">Open</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="all">{t('all')}</option>
+                  <option value="open">{t('home')}</option>
+                  <option value="resolved">{t('resolved')}</option>
                 </select>
                 <button
                   onClick={()=>{
@@ -330,7 +338,7 @@ ${text}`
                     setMode('list')
                     setSelectedTag(null)
                   }}
-                >Search</button>
+                >{t('search')}</button>
                 <button
                   onClick={()=>{
                     setSearchInput('')
@@ -341,12 +349,12 @@ ${text}`
                     setMode('home')
                   }}
                   style={{background:'#64748b'}}
-                >Clear</button>
+                >{t('search')}</button>
               </div>
 
               {issuesLoading && (
                 <div style={{textAlign:'center',opacity:.7,marginTop:'4px',marginBottom:'12px'}}>
-                  Loading issues…
+                  {t('loadingIssues')}
                 </div>
               )}
                 <div
@@ -365,9 +373,9 @@ ${text}`
                       }}
                     >
                       <div style={{fontWeight:600,marginBottom:6}}>
-                        {ESG_STRUCTURE.majors[m.major] || m.major}
+                        {label(m.major)}
                       </div>
-                      <div>{m.open} open / {m.total} total</div>
+                      <div>{m.open} {t('open')} / {m.total} {t('total')}</div>
                     </div>
                   ))}
                 </div>
@@ -385,7 +393,7 @@ ${text}`
                     : selectedMajor
                       ? (ESG_STRUCTURE.majors[selectedMajor] || selectedMajor)
                       : 'Search results'
-                  } · {filteredList.length} Issues in total
+                  } · {filteredList.length} {t('issuesInTotal')}
                 </div>
 
                 <button
@@ -398,7 +406,7 @@ ${text}`
                   }}
                   style={{background:'#64748b', marginRight: 50}}
                 >
-                  Back
+                  {t('back')}
                 </button>
               </div>
 
@@ -423,23 +431,23 @@ ${text}`
                       }}
                     >
                       <div style={{fontWeight:600,marginBottom:4}}>
-                        {ESG_STRUCTURE.labels[s.sub] || s.sub.replaceAll('_',' ')}
+                        {label(s.sub)}
                       </div>
                       <div style={{fontSize:12}}>
-                        {s.open} open / {s.total} total
+                        {s.open} {t('open')} / {s.total} {t('total')}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div style={{fontSize:24,fontWeight:600, marginBottom: 25, marginTop: 50}}>All Issues</div>
+              <div style={{fontSize:24,fontWeight:600, marginBottom: 25, marginTop: 50}}>{t('allIssues')}</div>
 
               {filteredList.map(i=>(
                 <div key={i.id} className="bubble assistant" style={{marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                     <div style={{fontWeight:600}}>{i.subject||i.title}</div>
-                    <button onClick={()=>{setActiveId(i.id); setMode('chat')}} style={{marginLeft: 15}}>Open</button>
+                    <button onClick={()=>{setActiveId(i.id); setMode('chat')}} style={{marginLeft: 15}}>{t('open')}</button>
                   </div>
                   <div style={{fontSize:12,opacity:.8,marginBottom:6}}>{new Date(i.createdAt).toLocaleString()}</div>
                   <div style={{fontSize:14,marginBottom:8,whiteSpace:'pre-wrap'}}>
@@ -466,12 +474,12 @@ ${text}`
               <div className="chat-inner">
                 {issuesLoading && !active && (
                   <div style={{textAlign:'center',opacity:.7,marginTop:'10vh'}}>
-                    Loading issues…
+                    {t('loadingIssues')}
                   </div>
                 )}
                 {!issuesLoading && !active && (
                   <div style={{textAlign:'center',opacity:.7,marginTop:'10vh'}}>
-                    Select an issue from the left.
+                    {t('selectIssue')}
                   </div>
                 )}
                 {active && (
@@ -509,15 +517,15 @@ ${text}`
                   placeholder={active?'Ask about this issue…':'Open an issue to start'}
                   disabled={!active}
                 />
-                <button onClick={onSend} disabled={!active}>Send</button>
+                <button onClick={onSend} disabled={!active}>{t('send')}</button>
                 <button
                   onClick={toggleStatus}
                   style={{background:active&&active.status==='resolved'?'#f59e0b':'#10b981'}}
                   disabled={!active}
                 >
-                  {active&&active.status==='resolved'?'Mark Unresolved':'Mark Resolved'}
+                  {active && active.status === 'resolved' ? t('markUnresolved') : t('markResolved')}
                 </button>
-                <button onClick={()=>setMode('home')} style={{background:'#64748b'}}>Dashboard</button>
+                <button onClick={()=>setMode('home')} style={{background:'#64748b'}}>{t('dashboard')}</button>
               </div>
             </div>
           </>

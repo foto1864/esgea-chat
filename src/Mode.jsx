@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { tr } from './i18n'
+import LanguageSwitcher from './LanguageSwitcher'
+import logo from './images/logo-esgea.png'
 
-import logo from './images/logo-esgea.png';
-
-export default function Mode() {
+export default function Mode({ lang, setLang }) {
   const { user, role, loading, login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const t = key => tr(lang, key)
 
   useEffect(() => {
     if (!loading && user && role) {
@@ -24,38 +26,46 @@ export default function Mode() {
     try {
       await login(email, password)
     } catch {
-      setError('Invalid credentials')
+      setError(t('invalidCredentials'))
     }
   }
 
   return (
     <div style={{display:'grid',placeItems:'center',height:'100vh',background:'#f7fafc'}}>
       <div style={{background:'#fff',border:'1px solid #cbd5e1',borderRadius:16,padding:24,minWidth:320,textAlign:'center',boxShadow:'0 6px 24px rgba(15,23,42,.08)'}}>
-        {/* <h2 style={{margin:'0 0 4px'}}>eSgEA Chat</h2> */}
-        <img src={logo} style={{ width: '65%', height: 'auto' }} />
-        <div style={{color:'#475569',fontSize:14,marginBottom:16}}>Sign in</div>
+        <LanguageSwitcher lang={lang} setLang={setLang} />
+
+        <img src={logo} style={{ width: '65%', height: 'auto' }} alt="eSgEA" />
+
+        <div style={{color:'#475569',fontSize:14,marginBottom:16}}>
+          {t('signIn')}
+        </div>
+
         <form onSubmit={onSubmit} style={{display:'flex',flexDirection:'column',gap:12}}>
           <input
             type="email"
             value={email}
             onChange={e=>setEmail(e.target.value)}
-            placeholder="Email"
+            placeholder={t('email')}
             style={{padding:'10px',borderRadius:12,border:'1px solid #cbd5e1'}}
           />
+
           <input
             type="password"
             value={password}
             onChange={e=>setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t('password')}
             style={{padding:'10px',borderRadius:12,border:'1px solid #cbd5e1'}}
           />
+
           {error && <div style={{color:'#b91c1c',fontSize:12}}>{error}</div>}
+
           <button
             type="submit"
             style={{background:'#2563eb',color:'#fff',padding:'10px 16px',borderRadius:12,border:'none',cursor:'pointer'}}
             disabled={loading}
           >
-            Log in
+            {t('logIn')}
           </button>
         </form>
       </div>

@@ -1,61 +1,140 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { addIssue, loadIssuesByClient } from './storage'
 import { chatWithGPT, askRAG } from './ChatGPT'
 import { autoTag, extractSubject } from './tagging'
 import { useAuth } from './AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { tr } from './i18n'
+import LanguageSwitcher from './LanguageSwitcher'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
 
-const examples=[
-  'Oil spill risk near the marina from maintenance activities.',
-  'Workplace safety training for dock workers seems insufficient.',
-  'Board lacks independent oversight on environmental reporting.',
-]
+const EXAMPLES = {
+  en: [
+    'Oil spill risk near the marina from maintenance activities.',
+    'Workplace safety training for dock workers seems insufficient.',
+    'Board lacks independent oversight on environmental reporting.'
+  ],
+  el: [
+    'Υπάρχει κίνδυνος διαρροής πετρελαίου κοντά στη μαρίνα λόγω εργασιών συντήρησης.',
+    'Η εκπαίδευση ασφάλειας για τους εργαζόμενους στην αποβάθρα φαίνεται ανεπαρκής.',
+    'Το διοικητικό συμβούλιο δεν έχει επαρκή ανεξάρτητη εποπτεία για τις περιβαλλοντικές αναφορές.'
+  ],
+  es: [
+    'Existe riesgo de derrame de petróleo cerca de la marina por actividades de mantenimiento.',
+    'La formación en seguridad laboral para los trabajadores del muelle parece insuficiente.',
+    'El consejo carece de supervisión independiente sobre los informes ambientales.'
+  ],
+  de: [
+    'Es besteht ein Risiko einer Ölverschmutzung nahe der Marina durch Wartungsarbeiten.',
+    'Die Sicherheitsschulung für Hafenarbeiter scheint unzureichend zu sein.',
+    'Dem Vorstand fehlt eine unabhängige Aufsicht über die Umweltberichterstattung.'
+  ],
+  no: [
+    'Det er risiko for oljeutslipp nær marinaen på grunn av vedlikeholdsarbeid.',
+    'Sikkerhetsopplæringen for havnearbeidere virker utilstrekkelig.',
+    'Styret mangler uavhengig tilsyn med miljørapporteringen.'
+  ]
+}
 
-// Regex used to detect facilitator replies
 const FACIL_RE = /^(I see an ESG concern\.|Κατάλαβα ότι περιγράφεις ESG)/i
 
-async function genTitleFromFirstMessage(text){
-  const sys={role:'system',content:'You create a concise chat title (2-6 words). No punctuation, no quotes, Title Case. If vague, return a generic category like "Environmental Concern". Return only the title.'}
-  const user={role:'user',content:text}
-  try{
-    const r=await chatWithGPT([sys,user])
-    const t=(r||'').split('\n')[0].trim()
-    if(!t) throw new Error()
-    return t.length>60?t.slice(0,60):t
-  }catch{
-    const s=(text||'').trim().toLowerCase()
-    if(/environment/.test(s)) return 'Environmental Concern'
-    if(/safety/.test(s)) return 'Safety Concern'
-    if(/governance|board|policy/.test(s)) return 'Governance Matter'
-    if(/social|community|stakeholder/.test(s)) return 'Social Concern'
+async function genTitleFromFirstMessage(text, lang){
+  const sys = {
+    role: 'system',
+    content: `You create a concise chat title in language "${lang}".
+2-6 words. No punctuation, no quotes. Return only the title.
+If vague, return a generic ESG category title in the same language.`
+  }
+
+  const user = { role: 'user', content: text }
+
+  try {
+    const r = await chatWithGPT([sys, user])
+    const t = (r || '').split('\n')[0].trim()
+    if (!t) throw new Error()
+    return t.length > 60 ? t.slice(0, 60) : t
+  } catch {
+    const s = (text || '').trim().toLowerCase()
+
+    if (/environment|περιβάλλον|ambiental|umwelt|miljø/.test(s)) {
+      if (lang === 'el') return 'Περιβαλλοντικό Ζήτημα'
+      if (lang === 'es') return 'Preocupación Ambiental'
+      if (lang === 'de') return 'Umweltanliegen'
+      if (lang === 'no') return 'Miljøbekymring'
+      return 'Environmental Concern'
+    }
+
+    if (/safety|ασφάλεια|seguridad|sicherheit|sikkerhet/.test(s)) {
+      if (lang === 'el') return 'Ζήτημα Ασφάλειας'
+      if (lang === 'es') return 'Preocupación de Seguridad'
+      if (lang === 'de') return 'Sicherheitsanliegen'
+      if (lang === 'no') return 'Sikkerhetsbekymring'
+      return 'Safety Concern'
+    }
+
+    if (/governance|board|policy|διακυβέρνηση|consejo|gobernanza|vorstand|styring/.test(s)) {
+      if (lang === 'el') return 'Ζήτημα Διακυβέρνησης'
+      if (lang === 'es') return 'Asunto de Gobernanza'
+      if (lang === 'de') return 'Governance-Thema'
+      if (lang === 'no') return 'Styringssak'
+      return 'Governance Matter'
+    }
+
+    if (/social|community|stakeholder|κοινων|comunidad|gemeinschaft|sosial/.test(s)) {
+      if (lang === 'el') return 'Κοινωνικό Ζήτημα'
+      if (lang === 'es') return 'Preocupación Social'
+      if (lang === 'de') return 'Soziales Anliegen'
+      if (lang === 'no') return 'Sosial Bekymring'
+      return 'Social Concern'
+    }
+
+    if (lang === 'el') return 'ESG Ερώτημα'
+    if (lang === 'es') return 'Consulta ESG'
+    if (lang === 'de') return 'ESG-Anfrage'
+    if (lang === 'no') return 'ESG-forespørsel'
     return 'ESG Inquiry'
   }
 }
 
-export default function Client(){
-
+export default function Client({ lang, setLang }) {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
-  const [convos,setConvos]=useState(()=>[{id:U(),title:'New chat',messages:[], facilitatorArmed:false }])
+
+  const t = key => tr(lang, key)
+  const examples = EXAMPLES[lang] || EXAMPLES.en
+
+  const [convos,setConvos]=useState(()=>[{id:U(),title:t('newChat'),messages:[], facilitatorArmed:false }])
   const [activeId,setActiveId]=useState(convos[0].id)
   const [input,setInput]=useState('')
   const [issues, setIssues] = useState([])
+
   const taRef=useRef(null)
   const MAX=240
+
   const active=useMemo(()=>convos.find(c=>c.id===activeId),[convos,activeId])
 
-  useEffect(()=>{ if(taRef.current){ taRef.current.style.height='auto'; const h=Math.min(taRef.current.scrollHeight,MAX); taRef.current.style.height=h+'px'; taRef.current.style.overflowY=taRef.current.scrollHeight>MAX?'auto':'hidden'}},[input])
+  useEffect(()=>{
+    if(taRef.current){
+      taRef.current.style.height='auto'
+      const h=Math.min(taRef.current.scrollHeight,MAX)
+      taRef.current.style.height=h+'px'
+      taRef.current.style.overflowY=taRef.current.scrollHeight>MAX?'auto':'hidden'
+    }
+  },[input])
+
   const chatRef=useRef(null)
-  useEffect(()=>{ if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight },[active?.messages])
+
+  useEffect(()=>{
+    if(chatRef.current) chatRef.current.scrollTop=chatRef.current.scrollHeight
+  },[active?.messages])
 
   useEffect(()=>{
     if (!user) {
       setIssues([])
       return
     }
+
     loadIssuesByClient(user.uid)
       .then(setIssues)
       .catch(e => {
@@ -69,27 +148,38 @@ export default function Client(){
   }
 
   async function callAI(prompt){
-    // snapshot whether we’re armed BEFORE pushing “Thinking…”
     const armed = !!active?.facilitatorArmed
 
-    push('assistant','Thinking…')
+    push('assistant', t('thinking'))
 
-    try{
+    try {
       const recent = (active?.messages || []).slice(-8).map(m => ({ role: m.role, content: m.content }))
-      const reply = await askRAG(prompt, { citations:false, top_k:6, facilitator: armed, messages: recent })
 
-      // Replace the “Thinking…” bubble with the real reply
+      const langInstruction = `
+Reply language: ${lang}.
+The user interface language is ${lang}.
+If the user writes in another language, prefer the user's message language unless it conflicts with the selected UI language.
+`
+
+      const reply = await askRAG(
+        `${langInstruction}\n\n${prompt}`,
+        { citations:false, top_k:6, facilitator: armed, messages: recent }
+      )
+
       setConvos(prev => prev.map(c => {
         if (c.id !== activeId) return c
-        const newMsgs = c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:reply}])
-        // One-shot: immediately disarm after we used it
+
+        const newMsgs = c.messages.slice(0,-1).concat([
+          {id:U(), role:'assistant', content:reply}
+        ])
+
         let facilitatorArmed = false
-        // If the reply itself is a facilitator prompt, arm for exactly the next user message
         if (FACIL_RE.test(reply)) facilitatorArmed = true
+
         return {...c, messages:newMsgs, facilitatorArmed}
       }))
 
-    }catch(e){
+    } catch(e) {
       setConvos(prev => prev.map(c =>
         c.id===activeId
           ? {...c, messages: c.messages.slice(0,-1).concat([{id:U(), role:'assistant', content:`RAG error: ${e.message}`}])}
@@ -97,10 +187,10 @@ export default function Client(){
       ))
     }
 
-    // Title for first user message in this chat
     const userMsgCount = active.messages.filter(m=>m.role==='user').length + 1
+
     if(userMsgCount===1){
-      const title = await genTitleFromFirstMessage(prompt)
+      const title = await genTitleFromFirstMessage(prompt, lang)
       setConvos(prev => prev.map(c => c.id===activeId ? {...c, title} : c))
     }
   }
@@ -108,6 +198,7 @@ export default function Client(){
   function onSend(){
     const text=input.trim()
     if(!text) return
+
     push('user',text)
     setInput('')
 
@@ -123,30 +214,38 @@ export default function Client(){
     callAI(text)
   }
 
-
   async function finalizeReport(){
     const transcript = active.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')
-    const lang = /[\u0370-\u03FF\u1F00-\u1FFF]/.test(transcript) ? 'el' : 'en'
+
     const sys = {
       role:'system',
-      content:`Rewrite the client's concern into a formal ESG incident report in ${lang} with fields:
-              From, To, Subject, Prologue (1 paragraph), Main text (2–4 paragraphs), Ending (1 paragraph with potential solutions).
-              Be concise, professional, and neutral.`
+      content:`Rewrite the client's concern into a formal ESG incident report.
+
+Language code: ${lang}.
+
+Use these exact field labels:
+From, To, Subject, Prologue, Main text, Ending.
+
+Be concise, professional, and neutral.`
     }
+
     const r = await chatWithGPT([sys, {role:'user', content: transcript}])
-    push('assistant','Final draft:\n\n'+r)
+    push('assistant', `${t('finalDraft')}\n\n${r}`)
   }
 
   async function submitReport(){
-    const last=[...active.messages].reverse().find(m=>m.role==='assistant'&&m.content.startsWith('Final draft:'))
-    if(!last) return alert('Create a final draft first.')
+    const last = [...active.messages]
+      .reverse()
+      .find(m => m.role === 'assistant' && m.content.startsWith(t('finalDraft')))
 
-    const reportText = last.content.replace(/^Final draft:\s*/,'')
+    if(!last) return alert(t('createFinalDraftFirst'))
+
+    const reportText = last.content.replace(new RegExp(`^${t('finalDraft')}\\s*`), '')
     const subject = extractSubject(reportText) || active.title || 'ESG Report'
-    const tags = autoTag((active.title||'')+' '+reportText, subject)
+    const tags = autoTag((active.title || '') + ' ' + reportText, subject)
 
     try {
-      const issue = await addIssue({
+      await addIssue({
         title: active.title || 'Report',
         subject,
         report: reportText,
@@ -156,99 +255,75 @@ export default function Client(){
         clientEmail: user ? user.email : null
       })
 
-      alert('ESG Report Submitted.')
+      alert(t('reportSubmitted'))
     } catch (e) {
       console.error(e)
-      alert('Error submitting report: ' + (e.message || 'unknown error'))
+      alert(t('errorSubmittingReport') + ' ' + (e.message || 'unknown error'))
     }
   }
 
-
   function newChat(){
-    const c={id:U(),title:'New chat',messages:[], facilitatorArmed:false}
-    setConvos([c,...convos]); setActiveId(c.id)
+    const c={id:U(),title:t('newChat'),messages:[], facilitatorArmed:false}
+    setConvos([c,...convos])
+    setActiveId(c.id)
   }
 
   function openIssueAsConvo(issue){
     const existing = convos.find(c => c.issueId === issue.id)
+
     if (existing) {
       setActiveId(existing.id)
       return
     }
+
     const msgs = [
-      { id: U(), role: 'assistant', content: `Submitted ESG report:\n\n${issue.report || '(no report text saved)'}` }
+      {
+        id: U(),
+        role: 'assistant',
+        content: `${t('submittedReport')}:\n\n${issue.report || `(${t('noReportTextSaved')})`}`
+      }
     ]
+
     const c = {
       id: U(),
-      title: issue.subject || issue.title || 'Previous report',
+      title: issue.subject || issue.title || t('previousReport'),
       messages: msgs,
       facilitatorArmed: false,
       issueId: issue.id,
       fromIssue: true,
       hasUserReply: false
     }
+
     setConvos(prev => [c, ...prev])
     setActiveId(c.id)
   }
 
-
   return (
     <div className="app">
-      {/* <aside className="sidebar">
-        <button onClick={newChat}>New Chat</button>
-
-        <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Examples</div>
-        {examples.map((e,i)=>(<div key={i} className="convo" onClick={()=>setInput(e)}>{e}</div>))}
-        <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Conversations</div>
-        {convos
-          .filter(c => !c.fromIssue || c.hasUserReply)
-          .map(c=>(
-            <div
-              key={c.id}
-              className={'convo '+(c.id===activeId?'active':'')}
-              onClick={()=>setActiveId(c.id)}
-            >
-              {c.title}
-            </div>
-          ))}
-
-
-        <div style={{padding:'6px 0',color:'#475569',fontSize:12, marginTop:8}}>Submitted Issues</div>
-        {issues.length === 0 && (
-          <div style={{fontSize:12, opacity:.7}}>No submitted issues yet.</div>
-        )}
-        {issues.map(issue => (
-          <div
-            key={issue.id}
-            className="convo"
-            onClick={() => openIssueAsConvo(issue)}
-          >
-            {issue.subject || issue.title || 'Untitled issue'}
-          </div>
-        ))}
-
-        <div style={{marginTop:'auto',display:'flex',gap:8}}>
-          <Link to="/" style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,textDecoration:'none'}}>Main Menu</Link>
-          <button
-            onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
-            style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,border:'none',cursor:'pointer'}}
-          >
-            Log Out
-          </button>
-        </div>
-      </aside> */}
       <aside className="sidebar">
         <div className="sidebar-scroll">
-          <button className="top-sidebar-btn" style={{display:'block'}} onClick={newChat}>New Chat</button>
+          <div className="sidebar-language">
+            <LanguageSwitcher lang={lang} setLang={setLang} />
+          </div>
 
-          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Examples</div>
+          <button className="top-sidebar-btn" style={{display:'block'}} onClick={newChat}>
+            {t('newChat')}
+          </button>
+
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>
+            {t('examples')}
+          </div>
+
           {examples.map((e,i)=>(
             <div key={i} className="convo" onClick={()=>setInput(e)}>
               {e}
             </div>
           ))}
 
-          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Conversations</div>
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>
+            {t('conversations')}
+          </div>
+
           {convos
             .filter(c => !c.fromIssue || c.hasUserReply)
             .map(c=>(
@@ -261,29 +336,40 @@ export default function Client(){
               </div>
             ))}
 
-          <div style={{padding:'6px 0',color:'#475569',fontSize:12, marginTop:8}}>Submitted Issues</div>
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12, marginTop:8}}>
+            {t('submittedIssues')}
+          </div>
+
           {issues.length === 0 && (
-            <div style={{fontSize:12, opacity:.7}}>No submitted issues yet.</div>
+            <div style={{fontSize:12, opacity:.7}}>
+              {t('noSubmittedIssues')}
+            </div>
           )}
+
           {issues.map(issue => (
             <div
               key={issue.id}
               className="convo"
               onClick={() => openIssueAsConvo(issue)}
             >
-              {issue.subject || issue.title || 'Untitled issue'}
+              {issue.subject || issue.title || t('previousReport')}
             </div>
           ))}
         </div>
 
         <div className="sidebar-footer">
-          <button onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
-            className="sidebar-footer-btn"> 
-            Main Menu
+          <button
+            onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            className="sidebar-footer-btn"
+          >
+            {t('mainMenu')}
           </button>
-          <button onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
-            className="sidebar-footer-btn"> 
-            Log Out
+
+          <button
+            onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            className="sidebar-footer-btn"
+          >
+            {t('logOut')}
           </button>
         </div>
       </aside>
@@ -291,26 +377,48 @@ export default function Client(){
       <main className="main">
         <div className="chat" ref={chatRef}>
           <div className="chat-inner">
-            {active.messages.length===0 && (<div style={{textAlign:'center',opacity:.7,marginTop:'10vh'}}>Start by describing your ESG concern.</div>)}
+            {active.messages.length===0 && (
+              <div style={{textAlign:'center',opacity:.7,marginTop:'10vh'}}>
+                {t('startConcern')}
+              </div>
+            )}
+
             {active.messages.map(m=>(
               <div key={m.id} className={'msg-row '+m.role}>
-                <div className={'bubble '+m.role}><b>{m.role==='user'?'You':'Assistant'}:</b> {m.content}</div>
+                <div className={'bubble '+m.role}>
+                  <b>{m.role==='user' ? t('you') : t('assistant')}:</b> {m.content}
+                </div>
               </div>
             ))}
           </div>
         </div>
+
         <div className="composer">
           <div className="composer-inner">
             <textarea
               ref={taRef}
               value={input}
               onChange={e=>setInput(e.target.value)}
-              onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); onSend() } }}
-              placeholder="Type your concern..."
+              onKeyDown={e=>{
+                if(e.key==='Enter'&&!e.shiftKey){
+                  e.preventDefault()
+                  onSend()
+                }
+              }}
+              placeholder={t('typeConcern')}
             />
-            <button onClick={onSend}>Send</button>
-            <button onClick={finalizeReport} style={{background:'#0f766e'}}>Finalize</button>
-            <button onClick={submitReport} style={{background:'#10b981'}}>Submit</button>
+
+            <button onClick={onSend}>
+              {t('send')}
+            </button>
+
+            <button onClick={finalizeReport} style={{background:'#0f766e'}}>
+              {t('finalize')}
+            </button>
+
+            <button onClick={submitReport} style={{background:'#10b981'}}>
+              {t('submit')}
+            </button>
           </div>
         </div>
       </main>

@@ -221,3 +221,49 @@ button {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+
+.language-switcher {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.lang-btn {
+  height: auto;
+  min-height: 34px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.lang-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.sidebar-language {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #cbd5e1;
+  margin-bottom: 10px;
+}
+
+.sidebar-language .language-switcher {
+  justify-content: flex-start;
+  margin-bottom: 0;
+}
+
+.sidebar-language .lang-btn {
+  font-size: 12px;
+  padding: 5px 7px;
+}
