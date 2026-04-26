@@ -194,7 +194,7 @@ export default function Client(){
 
   return (
     <div className="app">
-      <aside className="sidebar">
+      {/* <aside className="sidebar">
         <button onClick={newChat}>New Chat</button>
 
         <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Examples</div>
@@ -233,6 +233,56 @@ export default function Client(){
             onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
             style={{flex:1,textAlign:'center',background:'#334155',color:'#fff',padding:'8px',borderRadius:8,border:'none',cursor:'pointer'}}
           >
+            Log Out
+          </button>
+        </div>
+      </aside> */}
+      <aside className="sidebar">
+        <div className="sidebar-scroll">
+          <button className="top-sidebar-btn" style={{display:'block'}} onClick={newChat}>New Chat</button>
+
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Examples</div>
+          {examples.map((e,i)=>(
+            <div key={i} className="convo" onClick={()=>setInput(e)}>
+              {e}
+            </div>
+          ))}
+
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12}}>Conversations</div>
+          {convos
+            .filter(c => !c.fromIssue || c.hasUserReply)
+            .map(c=>(
+              <div
+                key={c.id}
+                className={'convo '+(c.id===activeId?'active':'')}
+                onClick={()=>setActiveId(c.id)}
+              >
+                {c.title}
+              </div>
+            ))}
+
+          <div style={{padding:'6px 0',color:'#475569',fontSize:12, marginTop:8}}>Submitted Issues</div>
+          {issues.length === 0 && (
+            <div style={{fontSize:12, opacity:.7}}>No submitted issues yet.</div>
+          )}
+          {issues.map(issue => (
+            <div
+              key={issue.id}
+              className="convo"
+              onClick={() => openIssueAsConvo(issue)}
+            >
+              {issue.subject || issue.title || 'Untitled issue'}
+            </div>
+          ))}
+        </div>
+
+        <div className="sidebar-footer">
+          <button onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            className="sidebar-footer-btn"> 
+            Main Menu
+          </button>
+          <button onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            className="sidebar-footer-btn"> 
             Log Out
           </button>
         </div>

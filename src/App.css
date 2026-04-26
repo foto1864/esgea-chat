@@ -151,3 +151,73 @@ button {
   font-size: 16px;
   cursor: pointer;
 }
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  background: #e2e8f0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+}
+
+.sidebar-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
+  background: #e2e8f0;
+  z-index: 5;
+}
+
+.sidebar-footer-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  text-align: center;
+  background: #334155;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.top-sidebar-btn {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 56px !important;
+  width: 200px !important;
+  text-align: center !important;
+  background: #334155 !important;
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+
+.convo {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

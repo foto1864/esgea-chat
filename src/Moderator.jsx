@@ -255,54 +255,42 @@ ${text}`
   return (
     <div className="app">
       <aside className="sidebar">
-        <button onClick={goHome} style={{background:'#64748b',marginBottom:10}}>Home</button>
-        <div style={{padding:'6px 0',color:'#b91c1c',fontSize:12}}>Unresolved</div>
-        {unresolved.map(i=>(
-          <div
-            key={i.id}
-            className={'convo '+(i.id===activeId?'active':'')}
-            onClick={()=>{setActiveId(i.id); setMode('chat')}}
-          >
-            {i.subject||i.title}
-          </div>
-        ))}
-        <div style={{padding:'6px 0',color:'#065f46',fontSize:12}}>Resolved</div>
-        {resolved.map(i=>(
-          <div
-            key={i.id}
-            className={'convo '+(i.id===activeId?'active':'')}
-            onClick={()=>{setActiveId(i.id); setMode('chat')}}
-          >
-            {i.subject||i.title}
-          </div>
-        ))}
-        <div style={{marginTop:'auto',display:'flex',gap:8}}>
-          <Link
-            to="/"
-            style={{
-              flex:1,
-              textAlign:'center',
-              background:'#334155',
-              color:'#fff',
-              padding:'8px',
-              borderRadius:8,
-              textDecoration:'none'
-            }}
-          >
-            Main Menu
-          </Link>
+        <div className="sidebar-scroll">
+          <button className='top-sidebar-btn' onClick={goHome} style={{background:'#64748b',marginBottom:10}}>Home</button>
+
+          <div style={{padding:'6px 0',color:'#b91c1c',fontSize:12}}>Unresolved</div>
+          {unresolved.map(i=>(
+            <div
+              key={i.id}
+              className={'convo '+(i.id===activeId?'active':'')}
+              onClick={()=>{setActiveId(i.id); setMode('chat')}}
+            >
+              {i.subject||i.title}
+            </div>
+          ))}
+
+          <div style={{padding:'6px 0',color:'#065f46',fontSize:12}}>Resolved</div>
+          {resolved.map(i=>(
+            <div
+              key={i.id}
+              className={'convo '+(i.id===activeId?'active':'')}
+              onClick={()=>{setActiveId(i.id); setMode('chat')}}
+            >
+              {i.subject||i.title}
+            </div>
+          ))}
+        </div>
+
+        <div className="sidebar-footer">
           <button
             onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
-            style={{
-              flex:1,
-              textAlign:'center',
-              background:'#334155',
-              color:'#fff',
-              padding:'8px',
-              borderRadius:8,
-              border:'none',
-              cursor:'pointer'
-            }}
+            className="sidebar-footer-btn"
+          >
+            Main Menu
+          </button>
+          <button
+            onClick={async ()=>{ await logout(); navigate('/', { replace:true }) }}
+            className="sidebar-footer-btn"
           >
             Log Out
           </button>
