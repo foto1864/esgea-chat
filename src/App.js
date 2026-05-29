@@ -11,6 +11,7 @@ function ClientRoute({ lang, setLang }) {
   const { user, role, loading } = useAuth()
   if (loading) return null
   if (!user) return <Navigate to="/" replace />
+  if (!user.emailVerified) return <Navigate to="/" replace />
   if (role !== 'client') return <Navigate to="/" replace />
   return <Client lang={lang} setLang={setLang} />
 }
@@ -19,6 +20,7 @@ function ModeratorRoute({ lang, setLang }) {
   const { user, role, loading } = useAuth()
   if (loading) return null
   if (!user) return <Navigate to="/" replace />
+  if (!user.emailVerified) return <Navigate to="/" replace />
   if (role !== 'moderator') return <Navigate to="/" replace />
   return <Moderator lang={lang} setLang={setLang} />
 }

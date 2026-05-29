@@ -1,9 +1,10 @@
 .app {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   background: #f7fafc;       /* light background */
   color: #1e293b;            /* dark gray text */
   font-family: sans-serif;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -39,10 +40,13 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .chat {
   flex: 1;
+  min-height: 0;
   padding: 16px;
   overflow-y: auto;
   background: #f8fafc;
@@ -72,6 +76,8 @@
   max-width: 860px;
   margin: 0 auto;
   padding: 20px 12px 28px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .msg-row {
@@ -95,7 +101,14 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   line-height: 1.5;
   word-wrap: break-word;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
+  box-sizing: border-box;
+}
+
+.chat-inner > .bubble,
+.grid .bubble {
+  max-width: 100%;
 }
 
 .bubble.assistant {
@@ -123,6 +136,7 @@
   gap: 10px;
   align-items: flex-end;
   width: 100%;          /* ensure it stretches properly */
+  box-sizing: border-box;
 }
 
 textarea {
@@ -138,6 +152,8 @@ textarea {
   background: #ffffff;
   color: #1e293b;
   overflow-y: hidden;   /* JS flips to auto when capped */
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 
@@ -150,12 +166,13 @@ button {
   color: white;
   font-size: 16px;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   min-height: 0;
   overflow: hidden;
   background: #e2e8f0;
@@ -215,6 +232,31 @@ button {
   box-sizing: border-box;
 }
 
+.auth-page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 16px;
+  background: #f7fafc;
+  box-sizing: border-box;
+}
+
+.auth-card {
+  width: min(100%, 600px);
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 6px 24px rgba(15,23,42,.08);
+  box-sizing: border-box;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 10px;
+}
+
 
 .convo {
   white-space: normal;
@@ -256,6 +298,125 @@ button {
   padding-bottom: 10px;
   border-bottom: 1px solid #cbd5e1;
   margin-bottom: 10px;
+}
+
+@media (max-width: 760px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 38dvh;
+    border-right: 0;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .sidebar-scroll {
+    max-height: 24dvh;
+  }
+
+  .sidebar-footer {
+    position: static;
+  }
+
+  .top-sidebar-btn {
+    width: 100% !important;
+  }
+
+  .chat {
+    padding: 10px;
+  }
+
+  .chat-inner {
+    padding: 12px 4px 18px;
+  }
+
+  .msg-row .bubble {
+    max-width: 92%;
+  }
+
+  .composer {
+    padding: 10px 0;
+  }
+
+  .composer-inner {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+    padding: 0 10px 10px;
+  }
+
+  .composer-inner textarea {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .composer-inner button {
+    flex: 1 1 calc(33.333% - 8px);
+    min-width: 92px;
+    height: 44px;
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .moderator-filters,
+  .list-header,
+  .issue-card-header,
+  .tag-editor-row,
+  .issue-detail-header {
+    flex-wrap: wrap;
+  }
+
+  .moderator-filters input,
+  .tag-editor-row input,
+  .issue-detail-header input {
+    flex: 1 1 100% !important;
+    min-width: 0;
+  }
+
+  .moderator-filters select,
+  .moderator-filters button,
+  .list-header button,
+  .issue-card-header button {
+    flex: 1 1 auto;
+    min-width: 110px;
+    height: 44px;
+  }
+
+  .list-header > div {
+    flex: 1 1 100%;
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .auth-page {
+    padding: 10px;
+  }
+
+  .auth-card {
+    padding: 18px;
+  }
+
+  .auth-actions {
+    gap: 8px;
+  }
+
+  .auth-actions button {
+    height: 46px;
+    padding: 0 10px !important;
+    font-size: 14px;
+  }
+
+  .sidebar {
+    max-height: 42dvh;
+  }
+
+  .composer-inner button {
+    flex-basis: 100%;
+  }
 }
 
 .sidebar-language .language-switcher {

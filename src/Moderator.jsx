@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { loadIssues, updateIssue } from './storage'
 import { askRAG } from './ChatGPT' // <-- use RAG
 import { TAXONOMY_LIST, extractSubject, categorizeIssueESG, ESG_STRUCTURE } from './tagging'
@@ -10,23 +9,6 @@ import { tr, taxLabel } from './i18n'
 import LanguageSwitcher from './LanguageSwitcher'
 
 function U(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
-
-function groupByTag(issues){
-  const map=new Map()
-  for(const it of issues){
-    const tags=(it.tags&&it.tags.length?it.tags:['uncategorized'])
-    for(const t of tags){
-      if(!map.has(t)) map.set(t,[])
-      map.get(t).push(it)
-    }
-  }
-  const out=[]
-  for(const [tag,arr] of map.entries()){
-    const open=arr.filter(i=>i.status!=='resolved').length
-    out.push({tag,open,total:arr.length,issues:arr})
-  }
-  return out.sort((a,b)=>b.open-a.open||a.tag.localeCompare(b.tag))
-}
 
 export default function Moderator({ lang, setLang }) {
   // Firebase
@@ -66,7 +48,7 @@ export default function Moderator({ lang, setLang }) {
       {id:U(),role:'assistant',content:active.report}
     ]
     setMessages(seed)
-  },[activeId])
+  },[active])
 
   useEffect(() => {
     let cancelled = false
@@ -164,7 +146,6 @@ ${text}`
   }
 
 
-  const groups=groupByTag(issues)
   const unresolved=issues.filter(i=>i.status!=='resolved')
 
   const majorsSummary = useMemo(() => {
@@ -309,7 +290,7 @@ ${text}`
         {mode==='home' && (
           <div className="chat" style={{padding:'16px'}}>
             <div className="chat-inner">
-              <div style={{display:'flex',gap:10,marginBottom:12}}>
+              <div className="moderator-filters" style={{display:'flex',gap:10,marginBottom:12}}>
                 <input
                   value={searchInput}
                   onChange={e=>setSearchInput(e.target.value)}
@@ -386,7 +367,7 @@ ${text}`
         {mode==='list' && (
           <div className="chat">
             <div className="chat-inner">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+              <div className="list-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
                 <div style={{fontSize:24,fontWeight:600}}>
                   {selectedTag
                     ? selectedTag.replaceAll('_',' ')
@@ -404,7 +385,7 @@ ${text}`
                     setSelectedMajor(null)
                     setMode('home')
                   }}
-                  style={{background:'#64748b', marginRight: 50}}
+                  style={{background:'#64748b'}}
                 >
                   {t('back')}
                 </button>
@@ -445,7 +426,7 @@ ${text}`
 
               {filteredList.map(i=>(
                 <div key={i.id} className="bubble assistant" style={{marginBottom:10}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <div className="issue-card-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                     <div style={{fontWeight:600}}>{i.subject||i.title}</div>
                     <button onClick={()=>{setActiveId(i.id); setMode('chat')}} style={{marginLeft: 15}}>{t('open')}</button>
                   </div>
@@ -453,7 +434,7 @@ ${text}`
                   <div style={{fontSize:14,marginBottom:8,whiteSpace:'pre-wrap'}}>
                     {(i.report||'').slice(0,220)}{(i.report||'').length>220?'…':''}
                   </div>
-                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  <div className="tag-editor-row" style={{display:'flex',gap:6,alignItems:'center'}}>
                     <input
                       defaultValue={(i.tags||[]).join(', ')}
                       onBlur={e=>editTags(i,e.target.value)}
@@ -484,7 +465,7 @@ ${text}`
                 )}
                 {active && (
                   <div className="bubble assistant" style={{marginBottom:10}}>
-                    <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:8}}>
+                    <div className="issue-detail-header" style={{display:'flex',gap:6,alignItems:'center',marginBottom:8}}>
                       <div style={{fontWeight:600,flex:1}}>{active.subject||active.title}</div>
                       <input
                         defaultValue={(active.tags||[]).join(', ')}
